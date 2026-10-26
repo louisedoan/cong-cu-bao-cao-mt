@@ -1,0 +1,32 @@
+:root { --bg: #f5f7fa; --card: #fff; --line: #e3e8ef; --pri: #1f6feb; --bad: #b42318; --warn: #a15c07; }
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: var(--bg); color: #1f2937; }
+#app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+header h1 { font-size: 18px; margin: 0; flex: 1; }
+nav button { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; margin-left: 6px; cursor: pointer; }
+nav button.active { background: var(--pri); color: #fff; border-color: var(--pri); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.card.lic { max-width: 640px; margin: 48px auto; }
+h2, h3 { margin: 0 0 10px; }
+label { display: block; font-size: 13px; color: #475467; margin: 10px 0 4px; }
+input, textarea, select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row input, .row select { flex: 1; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+button { padding: 8px 14px; border: 1px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer; font: inherit; }
+button.primary { background: var(--pri); color: #fff; border-color: var(--pri); margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 9px; text-align: left; font-size: 14px; vertical-align: top; }
+th.n, td.n { text-align: right; }
+tr.bad td { background: #fef3f2; color: var(--bad); }
+.alert { padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+.alert.bad { background: #fef3f2; color: var(--bad); }
+.alert.warn { background: #fffaeb; color: var(--warn); }
+.muted { color: #667085; font-size: 13px; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal .card { width: 420px; max-width: 92vw; margin: 0; }
+#toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toast { background: #101828; color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+.toast.bad { background: var(--bad); }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }

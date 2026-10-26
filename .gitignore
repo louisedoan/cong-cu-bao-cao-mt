@@ -1,0 +1,25 @@
+# Không đưa dữ liệu/PO/PXK/danh mục lên GitHub — chỉ mã nguồn.
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+*.pdf
+*.PDF
+~$*
+Dữ liệu/
+Xuất file/
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini
+.DS_Store
+# License: không bao giờ đưa khóa bí mật / sổ quản trị lên
+signing_key.dat
+*.nckey
+*.pem
+*.key
+*.sqlite3
+license.dat
+license.dat.*
+.env
+.env.*

@@ -1,0 +1,10 @@
+CÔNG CỤ MT — ĐỌC PO, ĐIỀN PHIẾU XUẤT KHO (có tải trọng)
+
+1. Mở công cụ: nhấp đúp "Mo-cong-cu.bat". Trình duyệt tự mở giao diện.
+2. Lần đầu: màn hình xin MÃ KÍCH HOẠT. Bấm "Sao chép" Mã thiết bị, gửi quản trị viên ->
+   nhận mã bắt đầu bằng NC1- hoặc NC2- (hiệu lực 20 ngày) -> dán vào ô -> "Kích hoạt".
+3. Đặt file "DANH MỤC HH KÊNH MT.xlsx" và mẫu PXK vào thư mục "Dữ liệu".
+4. Chọn file PO (PDF/Excel) -> xem trước -> sửa/bổ sung mã lạ -> "Tạo PXK".
+   Phiếu xuất kho nằm trong thư mục "Xuất file".
+
+Dữ liệu của bạn được giữ trong thư mục công cụ; công cụ KHÔNG gửi gì qua mạng.
