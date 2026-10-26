@@ -248,10 +248,16 @@ def match_line(line, catalog):
     quy_cach = p['quy_cach'] or 1
     tong_le = to_le(line.get('so_luong'), line.get('dvt_po'), line.get('per_box'), line.get('unit_kind', 'le'), quy_cach)
     so_thung = tong_le / quy_cach if quy_cach else tong_le
-    don_gia = p['gia_thung'] / VAT  # đơn giá thùng chưa VAT
+    amount_po = _num(line.get('amount_po'))
+    if amount_po > 0:  # giá lấy từ PO (trước VAT): thành tiền = tiền PO, đơn giá thùng = thành tiền / số thùng
+        thanh_tien = amount_po
+        don_gia = amount_po / so_thung if so_thung else amount_po
+    else:              # PO không có giá (vd KingKong) -> dùng giá danh mục (đã gồm VAT) chia 1.08
+        don_gia = p['gia_thung'] / VAT
+        thanh_tien = so_thung * don_gia
     return {'barcode': bc, 'matched': True, 'ten': p['ten'], 'dvt': p['dvt'], 'quy_cach': quy_cach,
             'tong_le': tong_le, 'so_thung': so_thung, 'tai_trong_dong': so_thung * p['tai_trong'],
-            'don_gia': don_gia, 'thanh_tien': so_thung * don_gia, 'so_luong': _num(line.get('so_luong')),
+            'don_gia': don_gia, 'thanh_tien': thanh_tien, 'so_luong': _num(line.get('so_luong')),
             'dvt_po': line.get('dvt_po')}
 
 
@@ -383,6 +389,12 @@ def find_barcodes(text):
     return _BARCODE.findall(str(text or ''))
 
 
+def _po_num(s):
+    """Số tiền trên PO: bỏ dấu phân cách nghìn ('.' hoặc ',') -> số nguyên. '678.224'/'1,376,006' -> int."""
+    t = re.sub(r'[.,\s]', '', str(s or ''))
+    return int(t) if t.isdigit() else 0
+
+
 def pdf_text(path):
     import pypdf
     r = pypdf.PdfReader(str(path))
@@ -417,10 +429,12 @@ def _emart_lines(text):
     lines = []
     for (start, bc), end in zip(pos, ends):
         win = text[start:end]
-        m = re.search(r'BOX\s+(\d+)\s+(\d+)', win)
+        m = re.search(r'BOX\s+(\d+)\s+(\d+)\s+([\d.,]+)\s+([\d.,]+)', win)  # BOX per_box PO_qty price amount(-VAT)
         per_box = int(m.group(1)) if m else None
         so_luong = int(m.group(2)) if m else 0
-        lines.append({'barcode': bc, 'so_luong': so_luong, 'dvt_po': 'BOX', 'unit_kind': 'box', 'per_box': per_box})
+        amount_po = _po_num(m.group(4)) if m else 0
+        lines.append({'barcode': bc, 'so_luong': so_luong, 'dvt_po': 'BOX', 'unit_kind': 'box', 'per_box': per_box,
+                      'amount_po': amount_po})
     return lines
 
 
@@ -449,8 +463,9 @@ def parse_menas(text):
         if j + 2 >= len(L):
             continue
         dvt = L[j]
-        so_luong = int(re.sub(r'\D', '', L[j + 2]) or 0)  # sau ĐVT là đơn giá rồi SỐ LƯỢNG
-        lines.append({'barcode': l, 'so_luong': so_luong, 'dvt_po': dvt, 'unit_kind': 'le'})
+        so_luong = int(re.sub(r'\D', '', L[j + 2]) or 0)  # ĐVT(j), đơn giá(j+1), SỐ LƯỢNG(j+2)
+        amount_po = _po_num(L[j + 3]) if j + 3 < len(L) else 0  # Tiền hàng (trước VAT)
+        lines.append({'barcode': l, 'so_luong': so_luong, 'dvt_po': dvt, 'unit_kind': 'le', 'amount_po': amount_po})
     so_po = re.search(r'PO\d{3,}-\d{3,}', text)
     ship = re.search(r'MGM\s+\S+', text)
     return {'chain': 'menas', 'lines': lines,
@@ -464,11 +479,11 @@ def parse_fujimart(text):
     lines = []
     for l in text.split('\n'):
         bcs = find_barcodes(l)
-        m = re.match(r'\s*\d+\s+(\d+)(?:\.\d+)?\s', l)  # số lượng = số thứ 2 đầu dòng
+        m = re.match(r'\s*\d+\s+(\d+)(?:\.\d+)?\s+([\d.,]+)', l)  # STT, số lượng, THÀNH TIỀN (trước VAT)
         if bcs and m:
             dvt = re.search(r'\b(LO|CHA|CAN|LON|BINH)\b', l)
             lines.append({'barcode': bcs[0], 'so_luong': int(m.group(1)), 'dvt_po': dvt.group(1) if dvt else 'LO',
-                          'unit_kind': 'le'})
+                          'unit_kind': 'le', 'amount_po': _po_num(m.group(2))})
     so_don = re.search(r'\b(13\d{16,})\b', text)  # số đơn dạng 1320033026...
     store = 'FujiMart' + (' Linh Đàm' if 'linh' in text.lower() or 'Linh' in text else '')
     return {'chain': 'fujimart', 'lines': lines,
@@ -481,9 +496,14 @@ def parse_bhbd(text):
     """BHBĐ/Nam Trực (PDF): dòng '... barcode qty ĐVT ...'."""
     lines = []
     for l in text.split('\n'):
-        m = re.search(r'(893\d{9,10})\s+(\d+)\s+([A-ZÀ-Ỹ]{2,6})', l)
+        m = re.search(r'(893\d{9,10})\s+(\d+)\s+([A-ZÀ-Ỹ]{2,6})\s+([\d.,]+)\s+\d+\s+([\d.,]+)', l)  # bc qty ĐVT giá thuế tiền
         if m:
-            lines.append({'barcode': m.group(1), 'so_luong': int(m.group(2)), 'dvt_po': m.group(3), 'unit_kind': 'le'})
+            lines.append({'barcode': m.group(1), 'so_luong': int(m.group(2)), 'dvt_po': m.group(3), 'unit_kind': 'le',
+                          'amount_po': _po_num(m.group(5))})
+        else:
+            m2 = re.search(r'(893\d{9,10})\s+(\d+)\s+([A-ZÀ-Ỹ]{2,6})', l)
+            if m2:
+                lines.append({'barcode': m2.group(1), 'so_luong': int(m2.group(2)), 'dvt_po': m2.group(3), 'unit_kind': 'le'})
     so_po = re.search(r'PO No\.?\)?\s*:?\s*(\S+)', text) or re.search(r'(PDN\d+)', text)
     return {'chain': 'bhbd', 'lines': lines,
             'header': {'so_po': so_po.group(1) if so_po else '', 'nguoi_nhan': 'Bưu điện Việt Nam', 'store': 'Nam Trực',
