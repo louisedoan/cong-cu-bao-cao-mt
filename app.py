@@ -196,18 +196,28 @@ def add_customer(customers, d):
     return customers[_key(store)]
 
 
+def _deaccent(s):
+    import unicodedata
+    s = unicodedata.normalize('NFD', _key(s)).replace('đ', 'd')
+    return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+
+
+def _words(s):
+    return set(_deaccent(s).split())
+
+
 def match_customer(customers, store_hint):
-    """Khớp cửa hàng theo tên (chính xác trước, rồi gần đúng theo số từ chung)."""
+    """Khớp cửa hàng. Chỉ nhận khi CHẮC CHẮN: trùng đúng, hoặc một bên là tập con từ của bên kia VÀ duy nhất
+    (so sánh bỏ dấu). Mơ hồ (2 chi nhánh cùng tiền tố, hoặc chỉ trùng vài từ) -> None để người dùng tự điền
+    (tránh gán nhầm MST/địa chỉ)."""
     k = _key(store_hint)
     if k in customers:
         return customers[k]
-    want = set(k.split())
-    best, best_score = None, 0
-    for key, c in customers.items():
-        score = len(want & set(key.split()))
-        if score > best_score and score >= 2:
-            best, best_score = c, score
-    return best
+    want = _words(store_hint)
+    if not want:
+        return None
+    cands = [c for key, c in customers.items() if (want <= _words(key)) or (_words(key) <= want)]
+    return cands[0] if len(cands) == 1 else None
 
 
 # =====================================================================
@@ -230,6 +240,8 @@ def match_line(line, catalog):
     """Ghép 1 dòng PO với danh mục theo barcode. Trả dict kết quả; mã lạ -> matched False."""
     bc = only_digits(line.get('barcode'))
     p = catalog.get(bc)
+    if not p and len(bc) == 13 and bc[:12] in catalog:  # mã 12 số trong PDF dính thêm 1 số -> thử 12 số
+        bc, p = bc[:12], catalog[bc[:12]]
     if not p:
         return {'barcode': bc, 'matched': False, 'so_luong': _num(line.get('so_luong')),
                 'dvt_po': line.get('dvt_po'), 'tai_trong_dong': 0, 'so_thung': 0, 'tong_le': 0}
@@ -352,6 +364,7 @@ def fill_pxk(parsed, catalog, template_path, out_dir, kho='KHO-BENTRE', ngay=Non
     ws.cell(9, 2).value = f'Địa chỉ nhận hàng: {h.get("dia_chi") or ""}'
     ws.cell(10, 2).value = f'Lý do xuất: {h.get("ly_do") or "Xuất kho bán hàng"}'
     ws.cell(9, 10).value = f'Đơn hàng(PO) số: {so_po}'
+    ws.cell(1, 10).value = f'{so_po}\nSố: PXK/{kho}-{ngay:%d%m%y}'  # số phiếu theo PO này (thay số mẫu EMART)
     w = tong_tai_trong(rows)
     ws.cell(11, 12).value = f'Khối lượng:  {w:g} Kg'
     wb.save(out)
